@@ -154,13 +154,7 @@
   </div>
   <div class="hdr-right">
     <span style="font-size:14px;color:rgba(255, 255, 255, 0.845)" id="data-badge">📊 <strong>21 courses</strong></span>
-    <button class="reset-btn" id="reset-btn" onclick="resetData()" title="Clear saved data and restore built-in defaults">↺ Reset to defaults</button>
-    <button class="settings-btn" onclick="openSettings()" title="GitHub data sync settings">⚙️ GitHub Sync</button>
-    <label for="file-input" class="upload-btn">
-      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      Upload Excel
-    </label>
-    <input type="file" id="file-input" accept=".xlsx,.xls" onchange="loadExcel(event)" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+    <span id="last-updated-badge" style="font-size:11px;color:rgba(255,255,255,.6);display:none">🔄 <span id="lu-text"></span></span>
   </div>
 </div>
 
@@ -214,7 +208,7 @@
   </div>
 </div>
 
-<footer>AI Course Dashboard · WiseTech Global &amp; e2open · Data as of 15 May 2026</footer>
+<footer>AI Course Dashboard · WiseTech Global &amp; e2open · <span id="footer-date">Data as of 15 May 2026</span> · <a href="#" onclick="openSettings();return false;" style="color:var(--text2);text-decoration:none;font-size:10px;opacity:.5" title="Admin: configure GitHub data source">⚙️</a></footer>
 <div class="toast" id="toast"></div>
 
 <!-- GitHub Settings Modal -->
@@ -622,6 +616,21 @@ function renderTable(){
 function sortTable(col){sortCol===col?sortDir*=-1:(sortCol=col,sortDir=-1);renderTable();}
 function filterTable(){renderTable();}
 
+// ── GitHub: get last commit date for the Excel file ──────────────────────
+async function getLastCommitDate(){
+  if(!GH_REPO) return null;
+  try{
+    const r=await fetch(`https://api.github.com/repos/${GH_REPO}/commits?path=${GH_XLSX}&page=1&per_page=1`);
+    if(!r.ok) return null;
+    const commits=await r.json();
+    if(commits&&commits[0]){
+      const d=commits[0].commit?.committer?.date||commits[0].commit?.author?.date;
+      if(d) return new Date(d).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    }
+    return null;
+  }catch(e){return null;}
+}
+
 // ── GitHub helpers — fetch Excel directly from repo ───────────────────────
 const GH_XLSX = 'AI_Course_Dashboard_Data.xlsx';
 
@@ -706,13 +715,19 @@ async function initLoad(){
       ]);
       if(result){
         badge.innerHTML='✅ GitHub Sync';
-        const ts=result.ts||'';
+        // Fetch the actual commit date from GitHub
+        const commitDate=await getLastCommitDate();
+        const ts=commitDate||result.ts||'';
+        if(ts){
+          document.getElementById('hdr-sub').textContent=`Enrollment & Adoption Analytics · Last updated: ${ts}`;
+          document.getElementById('footer-date').textContent=`Last updated: ${ts}`;
+          document.getElementById('lu-text').textContent=ts;
+          document.getElementById('last-updated-badge').style.display='inline';
+        }
         document.getElementById('src-banner').style.display='flex';
         document.getElementById('src-text').innerHTML=
-          `☁️ Live data from <strong>GitHub</strong> · ${DATA.WTG.length} courses${ts?' · updated '+ts:''} · <em>shared — all users see the same data</em>`;
+          `☁️ Live data from <strong>GitHub</strong> · ${DATA.WTG.length} courses${ts?' · updated '+ts:''} · <em>auto-refreshes for all users</em>`;
         document.getElementById('data-badge').innerHTML=`☁️ <strong>${DATA.WTG.length} courses</strong> · GitHub`;
-        document.getElementById('reset-btn').style.display='block';
-        if(ts) document.getElementById('hdr-sub').textContent=`Enrollment & Adoption Analytics · Last updated: ${ts}`;
         render();
       }else{
         badge.innerHTML='⚙️ GitHub (no data yet)';
