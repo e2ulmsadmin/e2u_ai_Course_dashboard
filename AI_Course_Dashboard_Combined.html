@@ -221,13 +221,13 @@
 <div class="modal-overlay" id="settings-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal">
     <h2>⚙️ GitHub Data Sync</h2>
-    <p class="m-sub">Connect a <strong>public GitHub repository</strong> so one Excel upload updates data for everyone. <a href="https://github.com/settings/tokens/new?scopes=public_repo&description=AI+Dashboard+Sync" target="_blank" style="color:var(--purple);font-weight:700">Create a token ↗</a></p>
+    <p class="m-sub">Connect your <strong>public GitHub repository</strong>. Just upload <code style="background:#f4f5f7;padding:1px 5px;border-radius:4px">AI_Course_Dashboard_Data.xlsx</code> to the repo whenever data changes — the dashboard fetches it automatically for everyone. No token required.</p>
     <label>GitHub Repository</label>
     <input id="gh-repo" type="text" placeholder="e.g. naseem-ahmad/ai-dashboard">
-    <p class="m-hint">Create a free public repo at github.com → New repository. Copy the name here as <em>username/repo-name</em>.</p>
-    <label>Personal Access Token (admin only)</label>
-    <input id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
-    <p class="m-hint">Token is only needed to upload data. Viewers don't need it. Stored in your browser only.</p>
+    <p class="m-hint">Format: <em>username/repo-name</em>. The repo must be <strong>public</strong>.</p>
+    <label>Personal Access Token <span style="font-weight:400;text-transform:none;font-size:11px">(optional — only needed for Upload Excel button)</span></label>
+    <input id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx (leave blank if not needed)">
+    <p class="m-hint">Leave blank if you'll manage data by uploading Excel directly to GitHub.</p>
     <div class="modal-btns">
       <button class="m-cancel" onclick="document.getElementById('settings-modal').classList.remove('open')">Cancel</button>
       <button class="m-save" onclick="saveGHSettings()">Save &amp; Connect</button>
@@ -238,50 +238,50 @@
 <script>
 const DEFAULT={
   WTG:[
-    {course:"Architecting AI Solutions: Scalable GenAI Systems for the Future",completed:0,in_progress:5,not_started:1,enrolled:6,time_sec:65541},
-    {course:"Boost Your Productivity With AI",completed:5,in_progress:3,not_started:1,enrolled:9,time_sec:94877},
-    {course:"Building AI-Powered Application with .NET",completed:0,in_progress:1,not_started:1,enrolled:2,time_sec:6587},
+    {course:"Architecting AI Solutions: Scalable GenAI Systems for the Future",completed:0,in_progress:5,not_started:1,enrolled:6,time_sec:65647},
+    {course:"Boost Your Productivity With AI",completed:6,in_progress:3,not_started:1,enrolled:10,time_sec:96409},
+    {course:"Building AI-Powered Application with .NET",completed:0,in_progress:2,not_started:1,enrolled:3,time_sec:10510},
     {course:"Cyber Essentials Principles: Using Generative AI Securely",completed:3,in_progress:1,not_started:0,enrolled:4,time_sec:12097},
-    {course:"Ethics in Automated Intelligence (AI)",completed:1,in_progress:3,not_started:0,enrolled:4,time_sec:64337},
-    {course:"Generative AI: Creating AI Workflows",completed:4,in_progress:7,not_started:2,enrolled:13,time_sec:105083},
+    {course:"Ethics in Automated Intelligence (AI)",completed:1,in_progress:4,not_started:0,enrolled:5,time_sec:78701},
+    {course:"Generative AI: Creating AI Workflows",completed:4,in_progress:7,not_started:3,enrolled:14,time_sec:105083},
     {course:"Git and GitHub Masterclass: The Practical Bootcamp",completed:0,in_progress:1,not_started:0,enrolled:1,time_sec:26096},
     {course:"GitHub Copilot in Action",completed:0,in_progress:6,not_started:1,enrolled:7,time_sec:215970},
-    {course:"How to Use Generative AI at Work: Essential Productivity Guide",completed:9,in_progress:5,not_started:0,enrolled:14,time_sec:253754},
-    {course:"Intro to Copilot for Microsoft 365",completed:0,in_progress:1,not_started:2,enrolled:3,time_sec:7973},
-    {course:"Introduction to AI Tools for Coders and Programmers",completed:1,in_progress:7,not_started:1,enrolled:9,time_sec:44825},
-    {course:"Introduction to Artificial Intelligence (AI)",completed:18,in_progress:7,not_started:1,enrolled:26,time_sec:52116},
-    {course:"Introduction to Data Analysis with Copilot in Microsoft Excel: AI Quick Wins",completed:6,in_progress:2,not_started:0,enrolled:8,time_sec:49766},
+    {course:"How to Use Generative AI at Work: Essential Productivity Guide",completed:9,in_progress:5,not_started:1,enrolled:15,time_sec:253754},
+    {course:"Intro to Copilot for Microsoft 365",completed:2,in_progress:0,not_started:1,enrolled:3,time_sec:16671},
+    {course:"Introduction to AI Tools for Coders and Programmers",completed:1,in_progress:9,not_started:1,enrolled:11,time_sec:89564},
+    {course:"Introduction to Artificial Intelligence (AI)",completed:19,in_progress:7,not_started:1,enrolled:27,time_sec:52487},
+    {course:"Introduction to Data Analysis with Copilot in Microsoft Excel: AI Quick Wins",completed:7,in_progress:2,not_started:0,enrolled:9,time_sec:50917},
     {course:"Meet Your New Coworker - Harnessing AI Agents for Next-Level Productivity Intermediate",completed:3,in_progress:3,not_started:1,enrolled:7,time_sec:48111},
     {course:"Microsoft Copilot Studio - The Copilot Studio Masterclass",completed:0,in_progress:4,not_started:1,enrolled:5,time_sec:30817},
     {course:"OWASP Top 10 for Large Language Model (LLM) Applications",completed:0,in_progress:2,not_started:1,enrolled:3,time_sec:32406},
-    {course:"Prompt Engineering Fundamentals: Make AI work for you",completed:9,in_progress:0,not_started:1,enrolled:10,time_sec:47509},
-    {course:"Prompt Engineering: For Optimal LLM Performance",completed:1,in_progress:0,not_started:1,enrolled:2,time_sec:7068},
-    {course:"The Fundamentals of Generative AI",completed:12,in_progress:5,not_started:0,enrolled:17,time_sec:235699},
-    {course:"The Fundamentals of Microsoft Copilot",completed:6,in_progress:3,not_started:3,enrolled:12,time_sec:104601},
+    {course:"Prompt Engineering Fundamentals: Make AI work for you",completed:10,in_progress:0,not_started:1,enrolled:11,time_sec:48424},
+    {course:"Prompt Engineering: For Optimal LLM Performance",completed:2,in_progress:0,not_started:1,enrolled:3,time_sec:7264},
+    {course:"The Fundamentals of Generative AI",completed:12,in_progress:6,not_started:0,enrolled:18,time_sec:237002},
+    {course:"The Fundamentals of Microsoft Copilot",completed:7,in_progress:3,not_started:3,enrolled:13,time_sec:123625},
     {course:"Using Generative AI for Coding: AI Quick Wins",completed:3,in_progress:5,not_started:1,enrolled:9,time_sec:54910}
   ],
   e2open:[
-    {course:"Architecting AI Solutions: Scalable GenAI Systems for the Future",completed:21,in_progress:5,not_started:22,enrolled:48,time_sec:100406},
-    {course:"Boost Your Productivity With AI",completed:140,in_progress:15,not_started:27,enrolled:182,time_sec:249361},
-    {course:"Building AI-Powered Application with .NET",completed:20,in_progress:5,not_started:17,enrolled:42,time_sec:142614},
-    {course:"Cyber Essentials Principles: Using Generative AI Securely",completed:248,in_progress:0,not_started:0,enrolled:248,time_sec:65213},
-    {course:"Ethics in Automated Intelligence (AI)",completed:159,in_progress:39,not_started:29,enrolled:227,time_sec:1914255},
-    {course:"Generative AI: Creating AI Workflows",completed:97,in_progress:19,not_started:32,enrolled:148,time_sec:492511},
+    {course:"Architecting AI Solutions: Scalable GenAI Systems for the Future",completed:29,in_progress:5,not_started:20,enrolled:54,time_sec:133411},
+    {course:"Boost Your Productivity With AI",completed:156,in_progress:15,not_started:27,enrolled:198,time_sec:272809},
+    {course:"Building AI-Powered Application with .NET",completed:28,in_progress:5,not_started:15,enrolled:48,time_sec:191453},
+    {course:"Cyber Essentials Principles: Using Generative AI Securely",completed:260,in_progress:0,not_started:0,enrolled:260,time_sec:65311},
+    {course:"Ethics in Automated Intelligence (AI)",completed:170,in_progress:40,not_started:27,enrolled:237,time_sec:2034615},
+    {course:"Generative AI: Creating AI Workflows",completed:111,in_progress:19,not_started:32,enrolled:162,time_sec:529727},
     {course:"Git and GitHub Masterclass: The Practical Bootcamp",completed:0,in_progress:3,not_started:0,enrolled:3,time_sec:17056},
-    {course:"GitHub Copilot in Action",completed:33,in_progress:10,not_started:24,enrolled:67,time_sec:277211},
-    {course:"How to Use Generative AI at Work: Essential Productivity Guide",completed:212,in_progress:54,not_started:27,enrolled:293,time_sec:3530468},
-    {course:"Intro to Copilot for Microsoft 365",completed:159,in_progress:32,not_started:36,enrolled:227,time_sec:1186052},
-    {course:"Introduction to AI Tools for Coders and Programmers",completed:37,in_progress:26,not_started:23,enrolled:86,time_sec:546831},
-    {course:"Introduction to Artificial Intelligence (AI)",completed:337,in_progress:30,not_started:14,enrolled:381,time_sec:455262},
-    {course:"Introduction to Data Analysis with Copilot in Microsoft Excel: AI Quick Wins",completed:231,in_progress:24,not_started:19,enrolled:274,time_sec:753974},
-    {course:"Meet Your New Coworker - Harnessing AI Agents for Next-Level Productivity Intermediate",completed:116,in_progress:22,not_started:25,enrolled:163,time_sec:638823},
-    {course:"Microsoft Copilot Studio - The Copilot Studio Masterclass",completed:76,in_progress:39,not_started:28,enrolled:143,time_sec:1668437},
-    {course:"OWASP Top 10 for Large Language Model (LLM) Applications",completed:21,in_progress:2,not_started:17,enrolled:40,time_sec:65554},
-    {course:"Prompt Engineering Fundamentals: Make AI work for you",completed:149,in_progress:12,not_started:20,enrolled:181,time_sec:342429},
-    {course:"Prompt Engineering: For Optimal LLM Performance",completed:28,in_progress:1,not_started:23,enrolled:52,time_sec:60558},
-    {course:"The Fundamentals of Generative AI",completed:300,in_progress:23,not_started:16,enrolled:339,time_sec:872794},
-    {course:"The Fundamentals of Microsoft Copilot",completed:161,in_progress:22,not_started:24,enrolled:207,time_sec:638707},
-    {course:"Using Generative AI for Coding: AI Quick Wins",completed:47,in_progress:6,not_started:16,enrolled:69,time_sec:102885}
+    {course:"GitHub Copilot in Action",completed:41,in_progress:12,not_started:22,enrolled:75,time_sec:305460},
+    {course:"How to Use Generative AI at Work: Essential Productivity Guide",completed:223,in_progress:56,not_started:27,enrolled:306,time_sec:3752452},
+    {course:"Intro to Copilot for Microsoft 365",completed:171,in_progress:36,not_started:34,enrolled:241,time_sec:1243164},
+    {course:"Introduction to AI Tools for Coders and Programmers",completed:47,in_progress:25,not_started:20,enrolled:92,time_sec:580644},
+    {course:"Introduction to Artificial Intelligence (AI)",completed:351,in_progress:29,not_started:15,enrolled:395,time_sec:475899},
+    {course:"Introduction to Data Analysis with Copilot in Microsoft Excel: AI Quick Wins",completed:241,in_progress:24,not_started:19,enrolled:284,time_sec:806908},
+    {course:"Meet Your New Coworker - Harnessing AI Agents for Next-Level Productivity Intermediate",completed:127,in_progress:19,not_started:26,enrolled:172,time_sec:690707},
+    {course:"Microsoft Copilot Studio - The Copilot Studio Masterclass",completed:90,in_progress:37,not_started:26,enrolled:153,time_sec:1815101},
+    {course:"OWASP Top 10 for Large Language Model (LLM) Applications",completed:28,in_progress:3,not_started:15,enrolled:46,time_sec:88591},
+    {course:"Prompt Engineering Fundamentals: Make AI work for you",completed:165,in_progress:11,not_started:20,enrolled:196,time_sec:370958},
+    {course:"Prompt Engineering: For Optimal LLM Performance",completed:35,in_progress:1,not_started:21,enrolled:57,time_sec:64637},
+    {course:"The Fundamentals of Generative AI",completed:315,in_progress:25,not_started:15,enrolled:355,time_sec:907579},
+    {course:"The Fundamentals of Microsoft Copilot",completed:172,in_progress:28,not_started:25,enrolled:225,time_sec:690784},
+    {course:"Using Generative AI for Coding: AI Quick Wins",completed:58,in_progress:6,not_started:14,enrolled:78,time_sec:114884}
   ]
 };
 
@@ -622,20 +622,34 @@ function renderTable(){
 function sortTable(col){sortCol===col?sortDir*=-1:(sortCol=col,sortDir=-1);renderTable();}
 function filterTable(){renderTable();}
 
-// ── GitHub API helpers ────────────────────────────────────────────────────
+// ── GitHub helpers — fetch Excel directly from repo ───────────────────────
+const GH_XLSX = 'AI_Course_Dashboard_Data.xlsx';
+
 async function loadFromGitHub(){
   if(!GH_REPO) return false;
   try{
-    // Use raw URL (no auth needed for public repos)
-    const url=`https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${GH_FILE}?t=${Date.now()}`;
-    const r=await fetch(url);
-    if(!r.ok) return false;
-    const data=await r.json();
-    if(data&&data.WTG&&data.e2open&&data.WTG.length){
-      DATA.WTG=data.WTG;
-      DATA.e2open=data.e2open;
-      return{ts:data._loaded||'',fname:data._file||GH_REPO};
+    // Fetch the Excel file directly — no token needed for public repos
+    const url=`https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${GH_XLSX}?t=${Date.now()}`;
+    const resp=await fetch(url);
+    if(resp.ok){
+      const buf=await resp.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array'});
+      const wS=wb.SheetNames.find(n=>n.toLowerCase().includes('wtg'));
+      const eS=wb.SheetNames.find(n=>n.toLowerCase().includes('e2open')||n.toLowerCase().includes('e2'));
+      if(wS&&eS){
+        const w=parseSheet(wb.Sheets[wS]);
+        const e=parseSheet(wb.Sheets[eS]);
+        if(w.length&&e.length){
+          DATA.WTG=w; DATA.e2open=e;
+          return{ts:new Date().toLocaleString(),fname:GH_XLSX};
+        }
+      }
     }
+    // Fallback: try JSON snapshot
+    const jr=await fetch(`https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${GH_FILE}?t=${Date.now()}`);
+    if(!jr.ok) return false;
+    const jd=await jr.json();
+    if(jd&&jd.WTG&&jd.WTG.length){DATA.WTG=jd.WTG;DATA.e2open=jd.e2open;return{ts:jd._loaded||'',fname:jd._file||GH_REPO};}
     return false;
   }catch(e){console.error('GH load error:',e);return false;}
 }
