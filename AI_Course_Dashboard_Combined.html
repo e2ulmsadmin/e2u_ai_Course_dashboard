@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Course Dashboard – WTG & e2open</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --amber:#8E7029; --amber-l:#F5EDD3;
+    --olive:#517222; --olive-l:#E2EDD0;
+    --purple: #7239a4; --purple-l:#EDE5F6;
+    --dp: #4d3075; --dp-l:#DDD8EE;
+    --teal:#3D8080; --teal-l:#D4ECEC;
+    --bg:#F4F5F7; --card:#fff;
+    --text:#172B4D; --text2:#5E6C84;
+    --border:#DFE1E6;
+    --r:8px; --sh:0 2px 8px rgba(0,0,0,.09);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+
+  /* Header */
+  .header{background: #4d3075;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 3px 10px rgba(59,38,102,.4)}
+  .header h1{font-size:20px;font-weight:700;color:#fff;letter-spacing:-.2px}
+  .header p{font-size:12px;color:rgba(255,255,255,.65);margin-top:3px}
+  .hdr-right{display:flex;align-items:center;gap:10px}
+  .upload-btn{padding:8px 16px;border-radius:20px;border:2px solid rgba(255,255,255,.4);background:transparent;color:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;user-select:none}
+  .upload-btn:hover{background:rgba(255,255,255,.15);border-color:#fff}
+  .reset-btn{padding:6px 13px;border-radius:20px;border:2px solid rgba(255,255,255,.25);background:transparent;color:rgba(255,255,255,.7);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;display:none}
+  .reset-btn:hover{background:rgba(255,60,60,.25);border-color:rgba(255,120,120,.6);color:#fff}
+  #file-input{display:none}
+
+  /* Slicer */
+  .slicer{background:#fff;border-bottom:1px solid var(--border);padding:10px 28px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .sl-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+  .sl-btn{padding:6px 18px;border-radius:20px;border:2px solid var(--border);background:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;color:var(--text2);display:flex;align-items:center;gap:6px}
+  .sl-btn .dot{width:9px;height:9px;border-radius:50%}
+  .sl-btn.ab{border-color:var(--dp);background:var(--dp-l);color:var(--dp)}
+  .sl-btn.aw{border-color:var(--purple);background:var(--purple-l);color:var(--purple)}
+  .sl-btn.ae{border-color:var(--teal);background:var(--teal-l);color:var(--teal)}
+  .sl-btn:hover{transform:translateY(-1px);box-shadow:var(--sh)}
+  .sl-div{width:1px;height:26px;background:var(--border)}
+  #sl-info{font-size:12px;color:var(--text2)}
+
+  /* Source banner */
+  .src-banner{background:var(--teal-l);border:1px solid var(--teal);border-radius:6px;padding:8px 14px;margin-bottom:14px;font-size:12px;color:var(--teal);display:none;align-items:center;gap:7px}
+
+  /* Main */
+  .main{padding:20px 28px;max-width:1600px;margin:0 auto}
+
+  /* KPI cards */
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:18px}
+  .kpi-card{background:var(--card);border-radius:var(--r);padding:15px 16px;box-shadow:var(--sh);border-top:3px solid var(--border);transition:transform .2s}
+  .kpi-card:hover{transform:translateY(-2px)}
+  .kpi-card.k-dp    {border-top-color:var(--dp)}
+  .kpi-card.k-purple{border-top-color:var(--purple)}
+  .kpi-card.k-olive {border-top-color:var(--olive)}
+  .kpi-card.k-amber {border-top-color:var(--amber)}
+  .kpi-card.k-teal  {border-top-color:var(--teal)}
+  .kpi-label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+  .kpi-value{font-size:26px;font-weight:800;line-height:1}
+  .kpi-value.vdp    {color:var(--dp)}
+  .kpi-value.vpurple{color:var(--purple)}
+  .kpi-value.volive {color:var(--olive)}
+  .kpi-value.vamber {color:var(--amber)}
+  .kpi-value.vteal  {color:var(--teal)}
+  .kpi-sub{font-size:11px;color:var(--text2);margin-top:4px}
+
+  /* Charts row */
+  .charts-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px}
+  .chart-card{background:var(--card);border-radius:var(--r);padding:16px;box-shadow:var(--sh)}
+  .chart-card.wide{grid-column:span 2}
+  .ct{font-size:11px;font-weight:700;color:var(--dp);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px}
+  .cs{font-size:10px;color:var(--text2);margin-bottom:10px}
+
+  /* Table */
+  .tbl-card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:20px}
+  .tbl-hdr{background:var(--dp);padding:12px 18px;display:flex;align-items:center;justify-content:space-between}
+  .tbl-hdr h3{color:#fff;font-size:13px;font-weight:700}
+  .tbl-search{padding:5px 11px;border:none;border-radius:6px;font-size:12px;width:200px;outline:none;background:rgba(255,255,255,.15);color:#fff}
+  .tbl-search::placeholder{color:rgba(255,255,255,.45)}
+  .tbl-search:focus{background:rgba(255,255,255,.25)}
+  table{width:100%;border-collapse:collapse}
+  thead tr{background:var(--bg)}
+  th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+  th:hover{background:#EBECF0}
+  td{padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#FAFBFC}
+  .course-nm{font-weight:500;line-height:1.3;color:var(--text);max-width:280px}
+  .bar-w{display:flex;align-items:center;gap:6px}
+  .bar-t{flex:1;height:5px;background:#EBECF0;border-radius:3px;overflow:hidden;min-width:45px}
+  .bar-f{height:100%;border-radius:3px}
+  .pl{font-size:11px;font-weight:700;min-width:35px;text-align:right}
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+  .bs{background:#E3FCEF;color:var(--olive)}
+  .bm{background:var(--amber-l);color:var(--amber)}
+  .be{background:var(--teal-l);color:var(--teal)}
+  .bl{background:#FFEBE6;color:#BF2600}
+  .bn{background:var(--bg);color:var(--text2)}
+  .nr{font-weight:700;text-align:right;display:block}
+  .org-row{display:flex;gap:3px;flex-wrap:wrap}
+  .op{padding:2px 6px;border-radius:4px;font-size:11px;font-weight:700}
+  .ow{background:var(--purple-l);color:var(--purple)}
+  .oe{background:var(--teal-l);color:var(--teal)}
+
+  /* Toast */
+  .toast{position:fixed;bottom:20px;right:20px;background:var(--dp);color:#fff;padding:10px 18px;border-radius:8px;font-size:12px;font-weight:600;opacity:0;transform:translateY(8px);transition:all .3s;pointer-events:none;z-index:999}
+  .toast.show{opacity:1;transform:translateY(0)}
+
+  /* GitHub sync badge */
+  .sp-badge{display:none;align-items:center;gap:5px;background:#E6FFE6;border:1px solid #2DA44E;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700;color:#1a7f37}
+  .sp-badge.visible{display:flex}
+  .sp-spinner{width:9px;height:9px;border:2px solid #2DA44E;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Settings button */
+  .settings-btn{padding:7px 13px;border-radius:20px;border:2px solid rgba(255,255,255,.3);background:transparent;color:rgba(255,255,255,.85);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+  .settings-btn:hover{background:rgba(255,255,255,.15);color:#fff}
+
+  /* Settings modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:#fff;border-radius:12px;padding:28px;width:440px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .modal h2{font-size:15px;font-weight:800;color:var(--dp);margin-bottom:6px}
+  .modal .m-sub{font-size:12px;color:var(--text2);margin-bottom:20px;line-height:1.5}
+  .modal label{display:block;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+  .modal input{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);outline:none;margin-bottom:14px;font-family:inherit}
+  .modal input:focus{border-color:var(--purple)}
+  .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+  .m-save{padding:8px 20px;background:var(--dp);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
+  .m-save:hover{background:var(--purple)}
+  .m-cancel{padding:8px 16px;background:#fff;color:var(--text2);border:1.5px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer}
+  .m-hint{font-size:11px;color:var(--text2);margin-top:-10px;margin-bottom:14px;line-height:1.5}
+
+  footer{padding:10px 28px;font-size:11px;color:var(--text2);border-top:1px solid var(--border);background:#fff;text-align:center}
+
+  @media(max-width:900px){.charts-row{grid-template-columns:1fr 1fr}.chart-card.wide{grid-column:span 2}}
+  @media(max-width:600px){.charts-row{grid-template-columns:1fr}.chart-card.wide{grid-column:span 1}.kpi-grid{grid-template-columns:1fr 1fr}}
+  #hdr-sub{
+    color: #ffffffd6;
+  }
+  
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>AI Course Dashboard e2open University</h1>
+    <p id="hdr-sub">Enrollment &amp; Adoption Analytics · Last updated: 15 May 2026</p>
+  </div>
+  <div class="hdr-right">
+    <span style="font-size:14px;color:rgba(255, 255, 255, 0.845)" id="data-badge">📊 <strong>21 courses</strong></span>
+    <button class="reset-btn" id="reset-btn" onclick="resetData()" title="Clear saved data and restore built-in defaults">↺ Reset to defaults</button>
+    <button class="settings-btn" onclick="openSettings()" title="GitHub data sync settings">⚙️ GitHub Sync</button>
+    <label for="file-input" class="upload-btn">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Upload Excel
+    </label>
+    <input type="file" id="file-input" accept=".xlsx,.xls" onchange="loadExcel(event)" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+  </div>
+</div>
+
+<div class="slicer">
+  <span class="sl-label">View by org:</span>
+  <button class="sl-btn ab" id="btn-both" onclick="setOrg('both')"><span class="dot" style="background:var(--dp)"></span>Combined</button>
+  <button class="sl-btn"    id="btn-wtg"  onclick="setOrg('wtg')"><span class="dot"  style="background:var(--purple)"></span>WiseTech Global</button>
+  <button class="sl-btn"    id="btn-e2"   onclick="setOrg('e2')"><span class="dot"   style="background:var(--teal)"></span>e2open</button>
+  <div class="sl-div"></div>
+  <span id="sl-info">Showing combined data for both organisations</span>
+  <div class="sl-div" id="sp-div" style="display:none"></div>
+  <span class="sp-badge" id="sp-badge">☁️ SharePoint Mode</span>
+</div>
+
+<div class="main">
+  <div class="src-banner" id="src-banner">📂 <span id="src-text"></span></div>
+
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="ct">Enrollment Status Breakdown</div>
+      <div class="cs" id="donut-sub"></div>
+      <div style="height:210px"><canvas id="donutChart"></canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="ct">Top 10 Courses by Enrollment</div>
+      <div class="cs">Total enrolled users per course</div>
+      <div style="height:210px"><canvas id="barChart"></canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="ct">Completion % by Course (Top 10)</div>
+      <div class="cs">Sorted by highest completion rate</div>
+      <div style="height:210px"><canvas id="compChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="ct">Course Status Distribution</div>
+      <div class="cs" id="status-sub"></div>
+      <div style="height:210px"><canvas id="statusChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-hdr">
+      <h3 id="tbl-title">Per-Course Metrics</h3>
+      <input class="tbl-search" id="search-box" type="text" placeholder="🔍 Search courses…" oninput="filterTable()">
+    </div>
+    <div style="overflow-x:auto">
+      <table><thead id="tbl-head"></thead><tbody id="tbl-body"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<footer>AI Course Dashboard · WiseTech Global &amp; e2open · Data as of 15 May 2026</footer>
+<div class="toast" id="toast"></div>
+
+<!-- GitHub Settings Modal -->
+<div class="modal-overlay" id="settings-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h2>⚙️ GitHub Data Sync</h2>
+    <p class="m-sub">Connect a <strong>public GitHub repository</strong> so one Excel upload updates data for everyone. <a href="https://github.com/settings/tokens/new?scopes=public_repo&description=AI+Dashboard+Sync" target="_blank" style="color:var(--purple);font-weight:700">Create a token ↗</a></p>
+    <label>GitHub Repository</label>
+    <input id="gh-repo" type="text" placeholder="e.g. naseem-ahmad/ai-dashboard">
+    <p class="m-hint">Create a free public repo at github.com → New repository. Copy the name here as <em>username/repo-name</em>.</p>
+    <label>Personal Access Token (admin only)</label>
+    <input id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+    <p class="m-hint">Token is only needed to upload data. Viewers don't need it. Stored in your browser only.</p>
+    <div class="modal-btns">
+      <button class="m-cancel" onclick="document.getElementById('settings-modal').classList.remove('open')">Cancel</button>
+      <button class="m-save" onclick="saveGHSettings()">Save &amp; Connect</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULT={
+  WTG:[
+    {course:"Architecting AI Solutions: Scalable GenAI Systems for the Future",completed:0,in_progress:5,not_started:1,enrolled:6,time_sec:65541},
+    {course:"Boost Your Productivity With AI",completed:5,in_progress:3,not_started:1,enrolled:9,time_sec:94877},
+    {course:"Building AI-Powered Application with .NET",completed:0,in_progress:1,not_started:1,enrolled:2,time_sec:6587},
+    {course:"Cyber Essentials Principles: Using Generative AI Securely",completed:3,in_progress:1,not_started:0,enrolled:4,time_sec:12097},
+    {course:"Ethics in Automated Intelligence (AI)",completed:1,in_progress:3,not_started:0,enrolled:4,time_sec:64337},
+    {course:"Generative AI: Creating AI Workflows",completed:4,in_progress:7,not_started:2,enrolled:13,time_sec:105083},
+    {course:"Git and GitHub Masterclass: The Practical Bootcamp",completed:0,in_progress:1,not_started:0,enrolled:1,time_sec:26096},
+    {course:"GitHub Copilot in Action",completed:0,in_progress:6,not_started:1,enrolled:7,time_sec:215970},
+    {course:"How to Use Generative AI at Work: Essential Productivity Guide",completed:9,in_progress:5,not_started:0,enrolled:14,time_sec:253754},
+    {course:"Intro to Copilot for Microsoft 365",completed:0,in_progress:1,not_started:2,enrolled:3,time_sec:7973},
+    {course:"Introduction to AI Tools for Coders and Programmers",completed:1,in_progress:7,not_started:1,enrolled:9,time_sec:44825},
+    {course:"Introduction to Artificial Intelligence (AI)",completed:18,in_progress:7,not_started:1,enrolled:26,time_sec:52116},
+    {course:"Introduction to Data Analysis with Copilot in Microsoft Excel: AI Quick Wins",completed:6,in_progress:2,not_started:0,enrolled:8,time_sec:49766},
+    {course:"Meet Your New Coworker - Harnessing AI Agents for Next-Level Productivity Intermediate",completed:3,in_progress:3,not_started:1,enrolled:7,time_sec:48111},
+    {course:"Microsoft Copilot Studio - The Copilot Studio Masterclass",completed:0,in_progress:4,not_started:1,enrolled:5,time_sec:30817},
+    {course:"OWASP Top 10 for Large Language Model (LLM) Applications",completed:0,in_progress:2,not_started:1,enrolled:3,time_sec:32406},
+    {course:"Prompt Engineering Fundamentals: Make AI work for you",completed:9,in_progress:0,not_started:1,enrolled:10,time_sec:47509},
+    {course:"Prompt Engineering: For Optimal LLM Performance",completed:1,in_progress:0,not_started:1,enrolled:2,time_sec:7068},
+    {course:"The Fundamentals of Generative AI",completed:12,in_progress:5,not_started:0,enrolled:17,time_sec:235699},
+    {course:"The Fundamentals of Microsoft Copilot",completed:6,in_progress:3,not_started:3,enrolled:12,time_sec:104601},
+    {course:"Using Generative AI for Coding: AI Quick Wins",completed:3,in_progress:5,not_started:1,enrolled:9,time_sec:54910}
+  ],
+  e2open:[
+    {course:"Architecting AI Solutions: Scalable GenAI Systems for the Future",completed:21,in_progress:5,not_started:22,enrolled:48,time_sec:100406},
+    {course:"Boost Your Productivity With AI",completed:140,in_progress:15,not_started:27,enrolled:182,time_sec:249361},
+    {course:"Building AI-Powered Application with .NET",completed:20,in_progress:5,not_started:17,enrolled:42,time_sec:142614},
+    {course:"Cyber Essentials Principles: Using Generative AI Securely",completed:248,in_progress:0,not_started:0,enrolled:248,time_sec:65213},
+    {course:"Ethics in Automated Intelligence (AI)",completed:159,in_progress:39,not_started:29,enrolled:227,time_sec:1914255},
+    {course:"Generative AI: Creating AI Workflows",completed:97,in_progress:19,not_started:32,enrolled:148,time_sec:492511},
+    {course:"Git and GitHub Masterclass: The Practical Bootcamp",completed:0,in_progress:3,not_started:0,enrolled:3,time_sec:17056},
+    {course:"GitHub Copilot in Action",completed:33,in_progress:10,not_started:24,enrolled:67,time_sec:277211},
+    {course:"How to Use Generative AI at Work: Essential Productivity Guide",completed:212,in_progress:54,not_started:27,enrolled:293,time_sec:3530468},
+    {course:"Intro to Copilot for Microsoft 365",completed:159,in_progress:32,not_started:36,enrolled:227,time_sec:1186052},
+    {course:"Introduction to AI Tools for Coders and Programmers",completed:37,in_progress:26,not_started:23,enrolled:86,time_sec:546831},
+    {course:"Introduction to Artificial Intelligence (AI)",completed:337,in_progress:30,not_started:14,enrolled:381,time_sec:455262},
+    {course:"Introduction to Data Analysis with Copilot in Microsoft Excel: AI Quick Wins",completed:231,in_progress:24,not_started:19,enrolled:274,time_sec:753974},
+    {course:"Meet Your New Coworker - Harnessing AI Agents for Next-Level Productivity Intermediate",completed:116,in_progress:22,not_started:25,enrolled:163,time_sec:638823},
+    {course:"Microsoft Copilot Studio - The Copilot Studio Masterclass",completed:76,in_progress:39,not_started:28,enrolled:143,time_sec:1668437},
+    {course:"OWASP Top 10 for Large Language Model (LLM) Applications",completed:21,in_progress:2,not_started:17,enrolled:40,time_sec:65554},
+    {course:"Prompt Engineering Fundamentals: Make AI work for you",completed:149,in_progress:12,not_started:20,enrolled:181,time_sec:342429},
+    {course:"Prompt Engineering: For Optimal LLM Performance",completed:28,in_progress:1,not_started:23,enrolled:52,time_sec:60558},
+    {course:"The Fundamentals of Generative AI",completed:300,in_progress:23,not_started:16,enrolled:339,time_sec:872794},
+    {course:"The Fundamentals of Microsoft Copilot",completed:161,in_progress:22,not_started:24,enrolled:207,time_sec:638707},
+    {course:"Using Generative AI for Coding: AI Quick Wins",completed:47,in_progress:6,not_started:16,enrolled:69,time_sec:102885}
+  ]
+};
+
+// ── Persistent storage key ────────────────────────────────────────────────
+const LS_KEY = 'aiCourseDashboard_v1';
+
+// ── GitHub data sync config ───────────────────────────────────────────────
+let GH_REPO  = localStorage.getItem('ghRepo')  || '';  // e.g. "naseem/ai-dashboard"
+let GH_TOKEN = localStorage.getItem('ghToken') || '';  // PAT with public_repo scope
+const GH_FILE   = 'ai-dashboard-data.json';
+const GH_BRANCH = 'main';
+
+function openSettings(){
+  document.getElementById('gh-repo').value  = GH_REPO;
+  document.getElementById('gh-token').value = GH_TOKEN;
+  document.getElementById('settings-modal').classList.add('open');
+}
+function saveGHSettings(){
+  GH_REPO  = document.getElementById('gh-repo').value.trim();
+  GH_TOKEN = document.getElementById('gh-token').value.trim();
+  localStorage.setItem('ghRepo',  GH_REPO);
+  localStorage.setItem('ghToken', GH_TOKEN);
+  document.getElementById('settings-modal').classList.remove('open');
+  showToast('✅ GitHub settings saved — loading data…');
+  initLoad();
+}
+
+// Load saved data from localStorage, fallback to DEFAULT
+let DATA = (()=>{
+  try {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.WTG && parsed.e2open && parsed.WTG.length) return parsed;
+    }
+  } catch(e){}
+  return JSON.parse(JSON.stringify(DEFAULT));
+})();
+
+let currentOrg='both', sortCol='enrolled', sortDir=-1, charts={};
+
+function loadExcel(evt){
+  const file=evt.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const wS=wb.SheetNames.find(n=>n.toLowerCase().includes('wtg'));
+      const eS=wb.SheetNames.find(n=>n.toLowerCase().includes('e2open')||n.toLowerCase().includes('e2'));
+      if(!wS||!eS){showToast('⚠️ Cannot find WTG or e2open sheets.',true);return;}
+      DATA.WTG=parseSheet(wb.Sheets[wS]);
+      DATA.e2open=parseSheet(wb.Sheets[eS]);
+      if(!DATA.WTG.length||!DATA.e2open.length){showToast('⚠️ No data rows found.',true);return;}
+      const timestamp=new Date().toLocaleString();
+      if(GH_REPO&&GH_TOKEN){
+        // ── GitHub path: write to shared repo ────────────────────────────
+        showToast('☁️ Uploading to GitHub…');
+        const allData={WTG:DATA.WTG,e2open:DATA.e2open,_file:file.name,_loaded:timestamp};
+        const ok=await saveToGitHub(allData);
+        if(ok){
+          showToast(`✅ ${file.name} saved to GitHub — all users will see updated data!`);
+          document.getElementById('src-text').innerHTML=
+            `☁️ Uploaded to <strong>GitHub</strong> · ${file.name} · ${timestamp} · <em>all users will see this data</em>`;
+        }else{
+          showToast('⚠️ GitHub save failed — check your token in ⚙️ GitHub Sync settings.',true);
+          document.getElementById('src-text').innerHTML=
+            `Data from <strong>${file.name}</strong> · ${DATA.WTG.length} courses · GitHub upload failed`;
+        }
+        document.getElementById('hdr-sub').textContent=`Enrollment & Adoption Analytics · Last updated: ${timestamp}`;
+      }else{
+        // ── Local path: save to localStorage ────────────────────────────
+        try{localStorage.setItem(LS_KEY,JSON.stringify({WTG:DATA.WTG,e2open:DATA.e2open,_file:file.name,_loaded:timestamp}));}catch(er){}
+        showToast(`✅ ${file.name} loaded! Set up GitHub Sync (⚙️) to share with all users.`);
+        document.getElementById('src-text').innerHTML=
+          `Data from <strong>${file.name}</strong> · ${DATA.WTG.length} courses · saved locally — set up ⚙️ GitHub Sync to share`;
+      }
+      document.getElementById('src-banner').style.display='flex';
+      document.getElementById('data-badge').innerHTML=
+        `${(GH_REPO&&GH_TOKEN)?'☁️':'📂'} <strong>${DATA.WTG.length} courses</strong> · ${file.name}`;
+      document.getElementById('reset-btn').style.display='block';
+      render();
+    }catch(err){showToast('❌ Error: '+err.message,true);}
+  };
+  reader.readAsArrayBuffer(file);
+  evt.target.value='';
+}
+function parseSheet(ws){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  let hdr=-1;
+  for(let i=0;i<rows.length;i++){
+    if(String(rows[i][0]||'').toLowerCase().includes('course')&&String(rows[i][2]||'').toLowerCase().includes('complet')){hdr=i;break;}
+  }
+  if(hdr<0)hdr=0;
+  const headers=rows[hdr].map(h=>String(h||'').toLowerCase());
+  const iC=headers.findIndex(h=>h.includes('course title'))||0;
+  const iCo=headers.findIndex(h=>(h.includes('"complet')||h.includes('complet'))&&!h.includes('%')&&!h.includes('rate'));
+  const iP=headers.findIndex(h=>h.includes('progress'));
+  const iN=headers.findIndex(h=>h.includes('not start')||h.includes('"not'));
+  const iE=headers.findIndex(h=>h.includes('enroll'));
+  const iT=headers.findIndex(h=>h.includes('time')||h.includes('sec'));
+  const out=[];
+  for(let i=hdr+1;i<rows.length;i++){
+    const r=rows[i];
+    const name=String(r[iC>=0?iC:0]||'').trim();
+    if(!name||name.toLowerCase()==='total'||name.toLowerCase().includes('overall'))continue;
+    out.push({course:name,completed:parseInt(r[iCo])||0,in_progress:parseInt(r[iP])||0,not_started:parseInt(r[iN])||0,enrolled:parseInt(r[iE])||0,time_sec:parseInt(r[iT])||0});
+  }
+  return out;
+}
+function showToast(msg,err=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.background=err?'#DE350B':'var(--dp)';
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+function getRows(org){
+  if(org==='wtg')return DATA.WTG.map(r=>({...r}));
+  if(org==='e2')return DATA.e2open.map(r=>({...r}));
+  const n=Math.max(DATA.WTG.length,DATA.e2open.length),out=[];
+  for(let i=0;i<n;i++){
+    const w=DATA.WTG[i]||{course:'',completed:0,in_progress:0,not_started:0,enrolled:0,time_sec:0};
+    const e=DATA.e2open[i]||{course:'',completed:0,in_progress:0,not_started:0,enrolled:0,time_sec:0};
+    out.push({course:w.course||e.course,completed:w.completed+e.completed,in_progress:w.in_progress+e.in_progress,
+      not_started:w.not_started+e.not_started,enrolled:w.enrolled+e.enrolled,time_sec:w.time_sec+e.time_sec,wtg:w,e2:e});
+  }
+  return out;
+}
+const pct=(a,b)=>b===0?0:a/b;
+const fP=v=>(v*100).toFixed(1)+'%';
+const fH=s=>(s/3600).toFixed(1);
+function getStatus(en,co,ip){
+  if(en===0)return 'No Enrollments';
+  const cp=co/en,ep=(co+ip)/en;
+  if(cp>=0.5)return 'Strong';
+  if(cp>=0.25)return 'Moderate';
+  if(ep>=0.5)return 'Engaged';
+  return 'Low';
+}
+function bdg(s){
+  const m={Strong:'bs',Moderate:'bm',Engaged:'be',Low:'bl','No Enrollments':'bn'};
+  return `<span class="badge ${m[s]||'bn'}">${s}</span>`;
+}
+
+function resetData(){
+  try { localStorage.removeItem(LS_KEY); } catch(e){}
+  DATA = JSON.parse(JSON.stringify(DEFAULT));
+  document.getElementById('src-banner').style.display='none';
+  document.getElementById('data-badge').innerHTML=`📊 <strong>21 courses</strong>`;
+  document.getElementById('reset-btn').style.display='none';
+  showToast('↺ Reset to built-in default data');
+  render();
+}
+
+function setOrg(org){
+  currentOrg=org;
+  ['both','wtg','e2'].forEach(o=>{
+    const b=document.getElementById('btn-'+o);
+    b.className='sl-btn'+(o===org?` a${o==='both'?'b':o==='wtg'?'w':'e'}`:'');
+  });
+  const inf={both:'Showing combined data for both organisations',wtg:'Showing WiseTech Global only',e2:'Showing e2open only'};
+  document.getElementById('sl-info').textContent=inf[org];
+  render();
+}
+
+function render(){
+  renderKPIs();renderCharts();renderTable();
+  // Force chart resize after layout settles (needed inside iFrames)
+  setTimeout(()=>Object.values(charts).forEach(c=>c&&c.resize()),150);
+}
+
+function renderKPIs(){
+  const rows=getRows(currentOrg);
+  const tE=rows.reduce((s,r)=>s+r.enrolled,0);
+  const tC=rows.reduce((s,r)=>s+r.completed,0);
+  const tP=rows.reduce((s,r)=>s+r.in_progress,0);
+  const tN=rows.reduce((s,r)=>s+r.not_started,0);
+  const tT=rows.reduce((s,r)=>s+r.time_sec,0);
+  const cp=pct(tC,tE),ep=pct(tC+tP,tE);
+  const kpis=[
+    {l:'Total Courses',   v:rows.length,              s:'AI training modules',        k:'k-dp',     vc:'vdp'},
+    {l:'Total Enrolled',  v:tE.toLocaleString(),       s:currentOrg==='both'?'WTG + e2open':currentOrg==='wtg'?'WiseTech Global':'e2open', k:'k-purple',vc:'vpurple'},
+    {l:'Completed',       v:tC.toLocaleString(),       s:fP(cp)+' completion rate',   k:'k-olive',  vc:'volive'},
+    {l:'In Progress',     v:tP.toLocaleString(),       s:'actively learning',         k:'k-amber',  vc:'vamber'},
+    {l:'Not Started',     v:tN.toLocaleString(),       s:'yet to begin',              k:'k-teal',   vc:'vteal'},
+    {l:'Completion Rate', v:fP(cp),                    s:'of enrolled users',         k:'k-olive',  vc:'volive'},
+    {l:'Engagement Rate', v:fP(ep),                    s:'completed or in-progress',  k:'k-teal',   vc:'vteal'},
+    {l:'Training Hours',  v:(tT/3600).toFixed(1),      s:'total platform hours',      k:'k-purple', vc:'vpurple'},
+  ];
+  document.getElementById('kpi-grid').innerHTML=kpis.map(k=>
+    `<div class="kpi-card ${k.k}"><div class="kpi-label">${k.l}</div><div class="kpi-value ${k.vc}">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`
+  ).join('');
+}
+
+function renderCharts(){
+  const rows=getRows(currentOrg);
+  Object.values(charts).forEach(c=>c&&c.destroy());charts={};
+  const tC=rows.reduce((s,r)=>s+r.completed,0);
+  const tP=rows.reduce((s,r)=>s+r.in_progress,0);
+  const tN=rows.reduce((s,r)=>s+r.not_started,0);
+  document.getElementById('donut-sub').textContent=`${(tC+tP+tN).toLocaleString()} total enrollments`;
+
+  const P='#7239A4',PL='#B891D8',T='#3D8080',TL='#7BB8B8',A='#8E7029',O='#517222',D='#3B2666';
+  const isBoth=currentOrg==='both';
+
+  // Donut
+  const dData=isBoth
+    ?{labels:['Completed','In Progress','Not Started'],datasets:[
+        {label:'WTG',data:[DATA.WTG.reduce((s,r)=>s+r.completed,0),DATA.WTG.reduce((s,r)=>s+r.in_progress,0),DATA.WTG.reduce((s,r)=>s+r.not_started,0)],backgroundColor:[P,PL,'#DDD8EE'],borderWidth:2,borderColor:'#fff'},
+        {label:'e2open',data:[DATA.e2open.reduce((s,r)=>s+r.completed,0),DATA.e2open.reduce((s,r)=>s+r.in_progress,0),DATA.e2open.reduce((s,r)=>s+r.not_started,0)],backgroundColor:[T,TL,'#D4ECEC'],borderWidth:2,borderColor:'#fff'}
+      ]}
+    :{labels:['Completed','In Progress','Not Started'],datasets:[{data:[tC,tP,tN],
+        backgroundColor:currentOrg==='wtg'?[P,PL,'#DDD8EE']:[T,TL,'#D4ECEC'],borderWidth:2,borderColor:'#fff'}]};
+  charts.donut=new Chart(document.getElementById('donutChart'),{
+    type:'doughnut',data:dData,
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:8,boxWidth:10}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.parsed.toLocaleString()}`}}}}
+  });
+
+  // Top 10 enrollment bar
+  const top10=[...rows].sort((a,b)=>b.enrolled-a.enrolled).slice(0,10);
+  const n10=top10.map(r=>r.course.length>34?r.course.slice(0,34)+'…':r.course);
+  const bDs=isBoth
+    ?[{label:'WTG',data:top10.map(r=>{const w=DATA.WTG.find(x=>x.course===r.course);return w?w.enrolled:0;}),backgroundColor:P,borderRadius:3},
+      {label:'e2open',data:top10.map(r=>{const e=DATA.e2open.find(x=>x.course===r.course);return e?e.enrolled:0;}),backgroundColor:T,borderRadius:3}]
+    :[{label:currentOrg==='wtg'?'WTG':'e2open',data:top10.map(r=>r.enrolled),backgroundColor:currentOrg==='wtg'?P:T,borderRadius:3}];
+  charts.bar=new Chart(document.getElementById('barChart'),{
+    type:'bar',data:{labels:n10,datasets:bDs},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      scales:{x:{grid:{color:'#F0F0F0'},ticks:{font:{size:10}}},y:{grid:{display:false},ticks:{font:{size:10}}}},
+      plugins:{legend:{display:isBoth,position:'top',labels:{font:{size:10},boxWidth:10}}}}
+  });
+
+  // Completion % top 10
+  const topC=[...rows].sort((a,b)=>pct(b.completed,b.enrolled)-pct(a.completed,a.enrolled)).slice(0,10);
+  const nC=topC.map(r=>r.course.length>34?r.course.slice(0,34)+'…':r.course);
+  const cDs=isBoth
+    ?[{label:'WTG',data:topC.map(r=>{const w=DATA.WTG.find(x=>x.course===r.course);return w?+((pct(w.completed,w.enrolled)*100).toFixed(1)):0;}),backgroundColor:P,borderRadius:3},
+      {label:'e2open',data:topC.map(r=>{const e=DATA.e2open.find(x=>x.course===r.course);return e?+((pct(e.completed,e.enrolled)*100).toFixed(1)):0;}),backgroundColor:T,borderRadius:3}]
+    :[{label:'Completion %',data:topC.map(r=>+((pct(r.completed,r.enrolled)*100).toFixed(1))),
+        backgroundColor:topC.map(r=>pct(r.completed,r.enrolled)>=0.5?O:pct(r.completed,r.enrolled)>=0.25?A:'#BF2600'),borderRadius:3}];
+  charts.comp=new Chart(document.getElementById('compChart'),{
+    type:'bar',data:{labels:nC,datasets:cDs},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      scales:{x:{max:100,grid:{color:'#F0F0F0'},ticks:{callback:v=>v+'%',font:{size:10}}},y:{grid:{display:false},ticks:{font:{size:10}}}},
+      plugins:{legend:{display:isBoth,position:'top',labels:{font:{size:10},boxWidth:10}}}}
+  });
+
+  // Status pie
+  const sc={Strong:0,Moderate:0,Engaged:0,Low:0,'No Enrollments':0};
+  rows.forEach(r=>{const s=getStatus(r.enrolled,r.completed,r.in_progress);sc[s]=(sc[s]||0)+1;});
+  charts.status=new Chart(document.getElementById('statusChart'),{
+    type:'pie',
+    data:{labels:Object.keys(sc),datasets:[{data:Object.values(sc),backgroundColor:[O,A,T,D,'#C1C7D0'],borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:8,boxWidth:10}}}}
+  });
+}
+
+function renderTable(){
+  const isBoth=currentOrg==='both';
+  const cols=[
+    {k:'course',l:'Course Title'},{k:'enrolled',l:'Enrolled'},{k:'completed',l:'Completed'},
+    {k:'in_progress',l:'In Progress'},{k:'not_started',l:'Not Started'},
+    {k:'comp_pct',l:'Completion %'},{k:'eng_pct',l:'Engagement %'},
+    {k:'time_hrs',l:'Time (hours)'},{k:'time_min',l:'Time (min)'},
+    {k:'avg_time',l:'Avg Time / Completion (min)'},{k:'status',l:'Status'},
+  ];
+  let head='<tr>';
+  cols.forEach(c=>{const arr=sortCol===c.k?(sortDir===-1?' ↓':' ↑'):'';head+=`<th onclick="sortTable('${c.k}')">${c.l}${arr}</th>`;});
+  head+='</tr>';
+  document.getElementById('tbl-head').innerHTML=head;
+
+  const rows=getRows(currentOrg);
+  const q=document.getElementById('search-box').value.toLowerCase();
+  let filtered=rows.filter(r=>r.course.toLowerCase().includes(q));
+
+  filtered.sort((a,b)=>{
+    let va,vb;
+    if(sortCol==='course')return a.course.localeCompare(b.course)*sortDir;
+    if(sortCol==='comp_pct'){va=pct(a.completed,a.enrolled);vb=pct(b.completed,b.enrolled);}
+    else if(sortCol==='eng_pct'){va=pct(a.completed+a.in_progress,a.enrolled);vb=pct(b.completed+b.in_progress,b.enrolled);}
+    else if(sortCol==='time_hrs'||sortCol==='time_min'){va=a.time_sec;vb=b.time_sec;}
+    else if(sortCol==='avg_time'){va=a.completed>0?a.time_sec/a.completed/60:0;vb=b.completed>0?b.time_sec/b.completed/60:0;}
+    else if(sortCol==='status'){
+      const o={Strong:0,Moderate:1,Engaged:2,Low:3,'No Enrollments':4};
+      va=o[getStatus(a.enrolled,a.completed,a.in_progress)]??99;
+      vb=o[getStatus(b.enrolled,b.completed,b.in_progress)]??99;
+    }else{va=a[sortCol]||0;vb=b[sortCol]||0;}
+    return(va-vb)*sortDir;
+  });
+
+  let body='';
+  filtered.forEach(r=>{
+    const cp=pct(r.completed,r.enrolled),ep=pct(r.completed+r.in_progress,r.enrolled);
+    const status=getStatus(r.enrolled,r.completed,r.in_progress);
+    const avgMin=r.completed>0?(r.time_sec/r.completed/60).toFixed(1):'–';
+    const bc=cp>=0.5?'var(--olive)':cp>=0.25?'var(--amber)':'#BF2600';
+
+    let eC,cC,pC,nC,cpC,epC,tHC,tMC,avC;
+    if(isBoth&&r.wtg&&r.e2){
+      const pill=(v,c)=>`<span class="op ${c}">${v}</span>`;
+      const wCp=pct(r.wtg.completed,r.wtg.enrolled),eCp=pct(r.e2.completed,r.e2.enrolled);
+      const wEp=pct(r.wtg.completed+r.wtg.in_progress,r.wtg.enrolled),eEp=pct(r.e2.completed+r.e2.in_progress,r.e2.enrolled);
+      const wAv=r.wtg.completed>0?(r.wtg.time_sec/r.wtg.completed/60).toFixed(1):'–';
+      const eAv=r.e2.completed>0?(r.e2.time_sec/r.e2.completed/60).toFixed(1):'–';
+      eC=`<div class="org-row">${pill(r.wtg.enrolled,'ow')}${pill(r.e2.enrolled,'oe')}</div>`;
+      cC=`<div class="org-row">${pill(r.wtg.completed,'ow')}${pill(r.e2.completed,'oe')}</div>`;
+      pC=`<div class="org-row">${pill(r.wtg.in_progress,'ow')}${pill(r.e2.in_progress,'oe')}</div>`;
+      nC=`<div class="org-row">${pill(r.wtg.not_started,'ow')}${pill(r.e2.not_started,'oe')}</div>`;
+      cpC=`<div class="org-row">${pill(fP(wCp),'ow')}${pill(fP(eCp),'oe')}</div>`;
+      epC=`<div class="org-row">${pill(fP(wEp),'ow')}${pill(fP(eEp),'oe')}</div>`;
+      tHC=`<div class="org-row">${pill(fH(r.wtg.time_sec),'ow')}${pill(fH(r.e2.time_sec),'oe')}</div>`;
+      tMC=`<div class="org-row">${pill((r.wtg.time_sec/60).toFixed(0),'ow')}${pill((r.e2.time_sec/60).toFixed(0),'oe')}</div>`;
+      avC=`<div class="org-row">${pill(wAv,'ow')}${pill(eAv,'oe')}</div>`;
+    }else{
+      eC=`<span class="nr" style="color:var(--purple)">${r.enrolled.toLocaleString()}</span>`;
+      cC=`<span class="nr" style="color:var(--olive)">${r.completed.toLocaleString()}</span>`;
+      pC=`<span class="nr" style="color:var(--amber)">${r.in_progress.toLocaleString()}</span>`;
+      nC=`<span class="nr">${r.not_started.toLocaleString()}</span>`;
+      cpC=`<div class="bar-w"><div class="bar-t"><div class="bar-f" style="width:${Math.min(cp*100,100)}%;background:${bc}"></div></div><span class="pl" style="color:${bc}">${fP(cp)}</span></div>`;
+      epC=`<div class="bar-w"><div class="bar-t"><div class="bar-f" style="width:${Math.min(ep*100,100)}%;background:var(--teal)"></div></div><span class="pl" style="color:var(--teal)">${fP(ep)}</span></div>`;
+      tHC=`<span class="nr" style="color:var(--purple)">${fH(r.time_sec)}</span>`;
+      tMC=`<span class="nr" style="color:var(--purple)">${(r.time_sec/60).toFixed(0)}</span>`;
+      avC=`<span class="nr">${avgMin}</span>`;
+    }
+    body+=`<tr><td><div class="course-nm">${r.course}</div></td>
+      <td>${eC}</td><td>${cC}</td><td>${pC}</td><td>${nC}</td>
+      <td>${cpC}</td><td>${epC}</td><td>${tHC}</td><td>${tMC}</td><td>${avC}</td>
+      <td>${bdg(status)}</td></tr>`;
+  });
+
+  document.getElementById('tbl-body').innerHTML=body;
+  document.getElementById('tbl-title').textContent=
+    `Per-Course Metrics${filtered.length<rows.length?` (${filtered.length} of ${rows.length} courses)`:' – All '+rows.length+' Courses'}`;
+}
+
+function sortTable(col){sortCol===col?sortDir*=-1:(sortCol=col,sortDir=-1);renderTable();}
+function filterTable(){renderTable();}
+
+// ── GitHub API helpers ────────────────────────────────────────────────────
+async function loadFromGitHub(){
+  if(!GH_REPO) return false;
+  try{
+    // Use raw URL (no auth needed for public repos)
+    const url=`https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${GH_FILE}?t=${Date.now()}`;
+    const r=await fetch(url);
+    if(!r.ok) return false;
+    const data=await r.json();
+    if(data&&data.WTG&&data.e2open&&data.WTG.length){
+      DATA.WTG=data.WTG;
+      DATA.e2open=data.e2open;
+      return{ts:data._loaded||'',fname:data._file||GH_REPO};
+    }
+    return false;
+  }catch(e){console.error('GH load error:',e);return false;}
+}
+
+async function saveToGitHub(allData){
+  if(!GH_REPO||!GH_TOKEN) return false;
+  try{
+    const apiUrl=`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`;
+    const headers={'Authorization':`Bearer ${GH_TOKEN}`,'Content-Type':'application/json'};
+    // Get current file SHA (required to update an existing file)
+    let sha;
+    const getR=await fetch(apiUrl,{headers});
+    if(getR.ok){const j=await getR.json();sha=j.sha;}
+    // Write file (base64 encoded JSON)
+    const content=btoa(unescape(encodeURIComponent(JSON.stringify(allData,null,2))));
+    const body={message:`Update AI dashboard data ${new Date().toISOString()}`,content,branch:GH_BRANCH};
+    if(sha) body.sha=sha;
+    const putR=await fetch(apiUrl,{method:'PUT',headers,body:JSON.stringify(body)});
+    return putR.ok||putR.status===201;
+  }catch(e){console.error('GH save error:',e);return false;}
+}
+
+// ── initLoad: called on startup and after saving GitHub settings ──────────
+async function initLoad(){
+  // Step 1: render immediately with localStorage or defaults
+  try{
+    const saved=localStorage.getItem(LS_KEY);
+    if(saved){
+      const meta=JSON.parse(saved);
+      if(meta&&meta.WTG&&meta.WTG.length){
+        DATA=meta;
+        document.getElementById('src-banner').style.display='flex';
+        document.getElementById('src-text').innerHTML=
+          `Showing saved data from <strong>${meta._file||'saved file'}</strong>${meta._loaded?' · loaded '+meta._loaded:''} · set up ⚙️ GitHub Sync to share with all users`;
+        document.getElementById('data-badge').innerHTML=`📂 <strong>${meta.WTG.length} courses</strong> · ${meta._file||'saved file'}`;
+        document.getElementById('reset-btn').style.display='block';
+      }
+    }
+  }catch(e){}
+
+  render(); // always render immediately — no blank page
+
+  // Step 2: if GitHub is configured, fetch shared data and re-render
+  if(GH_REPO){
+    const badge=document.getElementById('sp-badge');
+    badge.classList.add('visible');
+    document.getElementById('sp-div').style.display='block';
+    badge.innerHTML='<span class="sp-spinner"></span> Loading from GitHub…';
+
+    try{
+      const result=await Promise.race([
+        loadFromGitHub(),
+        new Promise(r=>setTimeout(()=>r(false),10000))
+      ]);
+      if(result){
+        badge.innerHTML='✅ GitHub Sync';
+        const ts=result.ts||'';
+        document.getElementById('src-banner').style.display='flex';
+        document.getElementById('src-text').innerHTML=
+          `☁️ Live data from <strong>GitHub</strong> · ${DATA.WTG.length} courses${ts?' · updated '+ts:''} · <em>shared — all users see the same data</em>`;
+        document.getElementById('data-badge').innerHTML=`☁️ <strong>${DATA.WTG.length} courses</strong> · GitHub`;
+        document.getElementById('reset-btn').style.display='block';
+        if(ts) document.getElementById('hdr-sub').textContent=`Enrollment & Adoption Analytics · Last updated: ${ts}`;
+        render();
+      }else{
+        badge.innerHTML='⚙️ GitHub (no data yet)';
+      }
+    }catch(e){
+      badge.innerHTML='⚙️ GitHub';
+    }
+  }
+}
+
+initLoad();
+</script>
+</body>
+</html>
