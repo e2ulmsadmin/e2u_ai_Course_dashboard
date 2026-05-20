@@ -153,8 +153,7 @@
     <p id="hdr-sub">Enrollment &amp; Adoption Analytics · Last updated: 15 May 2026</p>
   </div>
   <div class="hdr-right">
-    <span style="font-size:14px;color:rgba(255, 255, 255, 0.845)" id="data-badge">📊 <strong>21 courses</strong></span>
-    <span id="last-updated-badge" style="font-size:11px;color:rgba(255,255,255,.6);display:none">🔄 <span id="lu-text"></span></span>
+    <span style="font-size:12px;color:rgba(255,255,255,.6)" id="data-badge"></span>
   </div>
 </div>
 
@@ -166,12 +165,10 @@
   <div class="sl-div"></div>
   <span id="sl-info">Showing combined data for both organisations</span>
   <div class="sl-div" id="sp-div" style="display:none"></div>
-  <span class="sp-badge" id="sp-badge">☁️ SharePoint Mode</span>
+  <span class="sp-badge" id="sp-badge" style="display:none!important"></span>
 </div>
 
 <div class="main">
-  <div class="src-banner" id="src-banner">📂 <span id="src-text"></span></div>
-
   <div class="kpi-grid" id="kpi-grid"></div>
 
   <div class="charts-row">
@@ -208,7 +205,7 @@
   </div>
 </div>
 
-<footer>AI Course Dashboard · WiseTech Global &amp; e2open · <span id="footer-date">Data as of 15 May 2026</span> · <a href="#" onclick="openSettings();return false;" style="color:var(--text2);text-decoration:none;font-size:10px;opacity:.5" title="Admin: configure GitHub data source">⚙️</a></footer>
+<footer>AI Course Dashboard · WiseTech Global &amp; e2open · <span id="footer-date">Data as of 15 May 2026</span></footer>
 <div class="toast" id="toast"></div>
 
 <!-- GitHub Settings Modal -->
@@ -317,51 +314,9 @@ let DATA = (()=>{
 
 let currentOrg='both', sortCol='enrolled', sortDir=-1, charts={};
 
-function loadExcel(evt){
-  const file=evt.target.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    try{
-      const wb=XLSX.read(e.target.result,{type:'array'});
-      const wS=wb.SheetNames.find(n=>n.toLowerCase().includes('wtg'));
-      const eS=wb.SheetNames.find(n=>n.toLowerCase().includes('e2open')||n.toLowerCase().includes('e2'));
-      if(!wS||!eS){showToast('⚠️ Cannot find WTG or e2open sheets.',true);return;}
-      DATA.WTG=parseSheet(wb.Sheets[wS]);
-      DATA.e2open=parseSheet(wb.Sheets[eS]);
-      if(!DATA.WTG.length||!DATA.e2open.length){showToast('⚠️ No data rows found.',true);return;}
-      const timestamp=new Date().toLocaleString();
-      if(GH_REPO&&GH_TOKEN){
-        // ── GitHub path: write to shared repo ────────────────────────────
-        showToast('☁️ Uploading to GitHub…');
-        const allData={WTG:DATA.WTG,e2open:DATA.e2open,_file:file.name,_loaded:timestamp};
-        const ok=await saveToGitHub(allData);
-        if(ok){
-          showToast(`✅ ${file.name} saved to GitHub — all users will see updated data!`);
-          document.getElementById('src-text').innerHTML=
-            `☁️ Uploaded to <strong>GitHub</strong> · ${file.name} · ${timestamp} · <em>all users will see this data</em>`;
-        }else{
-          showToast('⚠️ GitHub save failed — check your token in ⚙️ GitHub Sync settings.',true);
-          document.getElementById('src-text').innerHTML=
-            `Data from <strong>${file.name}</strong> · ${DATA.WTG.length} courses · GitHub upload failed`;
-        }
-        document.getElementById('hdr-sub').textContent=`Enrollment & Adoption Analytics · Last updated: ${timestamp}`;
-      }else{
-        // ── Local path: save to localStorage ────────────────────────────
-        try{localStorage.setItem(LS_KEY,JSON.stringify({WTG:DATA.WTG,e2open:DATA.e2open,_file:file.name,_loaded:timestamp}));}catch(er){}
-        showToast(`✅ ${file.name} loaded! Set up GitHub Sync (⚙️) to share with all users.`);
-        document.getElementById('src-text').innerHTML=
-          `Data from <strong>${file.name}</strong> · ${DATA.WTG.length} courses · saved locally — set up ⚙️ GitHub Sync to share`;
-      }
-      document.getElementById('src-banner').style.display='flex';
-      document.getElementById('data-badge').innerHTML=
-        `${(GH_REPO&&GH_TOKEN)?'☁️':'📂'} <strong>${DATA.WTG.length} courses</strong> · ${file.name}`;
-      document.getElementById('reset-btn').style.display='block';
-      render();
-    }catch(err){showToast('❌ Error: '+err.message,true);}
-  };
-  reader.readAsArrayBuffer(file);
-  evt.target.value='';
-}
+// Safe element getter — silently ignores missing elements
+function $e(id){return document.getElementById(id)||{style:{},innerHTML:'',textContent:'',classList:{add:()=>{},remove:()=>{}}};}
+
 function parseSheet(ws){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   let hdr=-1;
@@ -420,12 +375,8 @@ function bdg(s){
 }
 
 function resetData(){
-  try { localStorage.removeItem(LS_KEY); } catch(e){}
-  DATA = JSON.parse(JSON.stringify(DEFAULT));
-  document.getElementById('src-banner').style.display='none';
-  document.getElementById('data-badge').innerHTML=`📊 <strong>21 courses</strong>`;
-  document.getElementById('reset-btn').style.display='none';
-  showToast('↺ Reset to built-in default data');
+  try{localStorage.removeItem(LS_KEY);}catch(e){}
+  DATA=JSON.parse(JSON.stringify(DEFAULT));
   render();
 }
 
@@ -681,61 +632,28 @@ async function saveToGitHub(allData){
   }catch(e){console.error('GH save error:',e);return false;}
 }
 
-// ── initLoad: called on startup and after saving GitHub settings ──────────
+// ── initLoad: fetch data from GitHub and render ───────────────────────────
 async function initLoad(){
-  // Step 1: render immediately with localStorage or defaults
+  render(); // render immediately with defaults — never a blank page
+
+  if(!GH_REPO) return;
+
   try{
-    const saved=localStorage.getItem(LS_KEY);
-    if(saved){
-      const meta=JSON.parse(saved);
-      if(meta&&meta.WTG&&meta.WTG.length){
-        DATA=meta;
-        document.getElementById('src-banner').style.display='flex';
-        document.getElementById('src-text').innerHTML=
-          `Showing saved data from <strong>${meta._file||'saved file'}</strong>${meta._loaded?' · loaded '+meta._loaded:''} · set up ⚙️ GitHub Sync to share with all users`;
-        document.getElementById('data-badge').innerHTML=`📂 <strong>${meta.WTG.length} courses</strong> · ${meta._file||'saved file'}`;
-        document.getElementById('reset-btn').style.display='block';
+    const result=await Promise.race([
+      loadFromGitHub(),
+      new Promise(r=>setTimeout(()=>r(false),10000))
+    ]);
+    if(result){
+      // Get the actual commit date
+      const commitDate=await getLastCommitDate();
+      const ts=commitDate||result.ts||'';
+      if(ts){
+        $e('hdr-sub').textContent=`Enrollment & Adoption Analytics · Last updated: ${ts}`;
+        $e('footer-date').textContent=`Last updated: ${ts}`;
       }
+      render();
     }
-  }catch(e){}
-
-  render(); // always render immediately — no blank page
-
-  // Step 2: if GitHub is configured, fetch shared data and re-render
-  if(GH_REPO){
-    const badge=document.getElementById('sp-badge');
-    badge.classList.add('visible');
-    document.getElementById('sp-div').style.display='block';
-    badge.innerHTML='<span class="sp-spinner"></span> Loading from GitHub…';
-
-    try{
-      const result=await Promise.race([
-        loadFromGitHub(),
-        new Promise(r=>setTimeout(()=>r(false),10000))
-      ]);
-      if(result){
-        badge.innerHTML='✅ GitHub Sync';
-        // Fetch the actual commit date from GitHub
-        const commitDate=await getLastCommitDate();
-        const ts=commitDate||result.ts||'';
-        if(ts){
-          document.getElementById('hdr-sub').textContent=`Enrollment & Adoption Analytics · Last updated: ${ts}`;
-          document.getElementById('footer-date').textContent=`Last updated: ${ts}`;
-          document.getElementById('lu-text').textContent=ts;
-          document.getElementById('last-updated-badge').style.display='inline';
-        }
-        document.getElementById('src-banner').style.display='flex';
-        document.getElementById('src-text').innerHTML=
-          `☁️ Live data from <strong>GitHub</strong> · ${DATA.WTG.length} courses${ts?' · updated '+ts:''} · <em>auto-refreshes for all users</em>`;
-        document.getElementById('data-badge').innerHTML=`☁️ <strong>${DATA.WTG.length} courses</strong> · GitHub`;
-        render();
-      }else{
-        badge.innerHTML='⚙️ GitHub (no data yet)';
-      }
-    }catch(e){
-      badge.innerHTML='⚙️ GitHub';
-    }
-  }
+  }catch(e){console.error('initLoad error:',e);}
 }
 
 initLoad();
