@@ -407,7 +407,7 @@ function renderKPIs(){
   const cp=pct(tC,tE),ep=pct(tC+tP,tE);
   const kpis=[
     {l:'Total Courses',   v:rows.length,              s:'AI training modules',        k:'k-dp',     vc:'vdp'},
-    {l:'Total Enrolled',  v:tE.toLocaleString(),       s:currentOrg==='both'?'WTG + e2open':currentOrg==='wtg'?'WiseTech Global':'e2open', k:'k-purple',vc:'vpurple'},
+    {l:'Total Enrollments',  v:tE.toLocaleString(),       s:currentOrg==='both'?'WTG + e2open':currentOrg==='wtg'?'WiseTech Global':'e2open', k:'k-purple',vc:'vpurple'},
     {l:'Completed',       v:tC.toLocaleString(),       s:fP(cp)+' completion rate',   k:'k-olive',  vc:'volive'},
     {l:'In Progress',     v:tP.toLocaleString(),       s:'actively learning',         k:'k-amber',  vc:'vamber'},
     {l:'Not Started',     v:tN.toLocaleString(),       s:'yet to begin',              k:'k-teal',   vc:'vteal'},
