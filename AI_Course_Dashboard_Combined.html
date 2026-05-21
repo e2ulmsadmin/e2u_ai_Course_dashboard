@@ -407,7 +407,7 @@ function renderKPIs(){
   const cp=pct(tC,tE),ep=pct(tC+tP,tE);
   const kpis=[
     {l:'Total Courses',   v:rows.length,              s:'AI training modules',        k:'k-dp',     vc:'vdp'},
-    {l:'Total Enrollments',  v:tE.toLocaleString(),       s:currentOrg==='both'?'WTG + e2open':currentOrg==='wtg'?'WiseTech Global':'e2open', k:'k-purple',vc:'vpurple'},
+    {l:'Total Enrolled',  v:tE.toLocaleString(),       s:currentOrg==='both'?'WTG + e2open':currentOrg==='wtg'?'WiseTech Global':'e2open', k:'k-purple',vc:'vpurple'},
     {l:'Completed',       v:tC.toLocaleString(),       s:fP(cp)+' completion rate',   k:'k-olive',  vc:'volive'},
     {l:'In Progress',     v:tP.toLocaleString(),       s:'actively learning',         k:'k-amber',  vc:'vamber'},
     {l:'Not Started',     v:tN.toLocaleString(),       s:'yet to begin',              k:'k-teal',   vc:'vteal'},
@@ -567,51 +567,54 @@ function renderTable(){
 function sortTable(col){sortCol===col?sortDir*=-1:(sortCol=col,sortDir=-1);renderTable();}
 function filterTable(){renderTable();}
 
-// ── GitHub: get last commit date for the Excel file ──────────────────────
+// ── Encryption passphrase — must match encrypt_data.py ───────────────────
+const ENC_PASS = "WTGe2open#AI2026$Secure!Dash";
+const ENC_FILE = "ai-dashboard-data.enc";
+
+// ── Web Crypto helpers ────────────────────────────────────────────────────
+function b64ToBytes(b64){return Uint8Array.from(atob(b64),c=>c.charCodeAt(0));}
+async function deriveKey(passphrase,salt){
+  const raw=await crypto.subtle.importKey('raw',new TextEncoder().encode(passphrase),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},
+    raw,{name:'AES-GCM',length:256},false,['decrypt']
+  );
+}
+async function decryptPayload(enc){
+  const salt=b64ToBytes(enc.salt),iv=b64ToBytes(enc.iv),data=b64ToBytes(enc.data);
+  const key=await deriveKey(ENC_PASS,salt);
+  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,data);
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+// ── GitHub: get last commit date ──────────────────────────────────────────
 async function getLastCommitDate(){
   if(!GH_REPO) return null;
   try{
-    const r=await fetch(`https://api.github.com/repos/${GH_REPO}/commits?path=${GH_XLSX}&page=1&per_page=1`);
+    const r=await fetch(`https://api.github.com/repos/${GH_REPO}/commits?path=${ENC_FILE}&page=1&per_page=1&_=${Date.now()}`,{cache:'no-store'});
     if(!r.ok) return null;
     const commits=await r.json();
-    if(commits&&commits[0]){
-      const d=commits[0].commit?.committer?.date||commits[0].commit?.author?.date;
-      if(d) return new Date(d).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    }
-    return null;
+    const d=commits?.[0]?.commit?.committer?.date||commits?.[0]?.commit?.author?.date;
+    return d?new Date(d).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):null;
   }catch(e){return null;}
 }
 
-// ── GitHub helpers — fetch Excel directly from repo ───────────────────────
-const GH_XLSX = 'AI_Course_Dashboard_Data.xlsx';
-
+// ── Fetch and decrypt data from GitHub ───────────────────────────────────
 async function loadFromGitHub(){
   if(!GH_REPO) return false;
   try{
-    // Fetch the Excel file directly — no token needed for public repos
-    const url=`https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${GH_XLSX}?t=${Date.now()}`;
+    const url=`https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${ENC_FILE}?t=${Date.now()}`;
     const resp=await fetch(url);
-    if(resp.ok){
-      const buf=await resp.arrayBuffer();
-      const wb=XLSX.read(buf,{type:'array'});
-      const wS=wb.SheetNames.find(n=>n.toLowerCase().includes('wtg'));
-      const eS=wb.SheetNames.find(n=>n.toLowerCase().includes('e2open')||n.toLowerCase().includes('e2'));
-      if(wS&&eS){
-        const w=parseSheet(wb.Sheets[wS]);
-        const e=parseSheet(wb.Sheets[eS]);
-        if(w.length&&e.length){
-          DATA.WTG=w; DATA.e2open=e;
-          return{ts:new Date().toLocaleString(),fname:GH_XLSX};
-        }
-      }
+    if(!resp.ok) return false;
+    const enc=await resp.json();
+    const decrypted=await decryptPayload(enc);
+    if(decrypted?.WTG?.length&&decrypted?.e2open?.length){
+      DATA.WTG=decrypted.WTG;
+      DATA.e2open=decrypted.e2open;
+      return{ts:'',fname:ENC_FILE};
     }
-    // Fallback: try JSON snapshot
-    const jr=await fetch(`https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${GH_FILE}?t=${Date.now()}`);
-    if(!jr.ok) return false;
-    const jd=await jr.json();
-    if(jd&&jd.WTG&&jd.WTG.length){DATA.WTG=jd.WTG;DATA.e2open=jd.e2open;return{ts:jd._loaded||'',fname:jd._file||GH_REPO};}
     return false;
-  }catch(e){console.error('GH load error:',e);return false;}
+  }catch(e){console.error('GH decrypt error:',e);return false;}
 }
 
 async function saveToGitHub(allData){
