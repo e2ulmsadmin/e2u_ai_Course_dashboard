@@ -556,18 +556,6 @@ function filterTable(){renderTable();}
 // ── Excel filename in GitHub repo ─────────────────────────────────────────
 const XLSX_FILE = "AI_Course_Dashboard_Data.xlsx";
 
-// ── GitHub: get last commit date ──────────────────────────────────────────
-async function getLastCommitDate(){
-  if(!GH_REPO) return null;
-  try{
-    const r=await fetch(`https://api.github.com/repos/${GH_REPO}/commits?path=${XLSX_FILE}&page=1&per_page=1&_=${Date.now()}`,{cache:'no-store'});
-    if(!r.ok) return null;
-    const commits=await r.json();
-    const d=commits?.[0]?.commit?.committer?.date||commits?.[0]?.commit?.author?.date;
-    return d?new Date(d).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):null;
-  }catch(e){return null;}
-}
-
 // ── Parse one Excel worksheet into dashboard row format ───────────────────
 function parseSheet(wb, sheetName){
   const ws = wb.Sheets[sheetName];
@@ -610,36 +598,22 @@ function parseSheet(wb, sheetName){
 async function loadFromGitHub(){
   if(!GH_REPO){showToast('❌ No GitHub repo configured');return false;}
   try{
-    showToast('🔄 Loading latest data from GitHub…');
-    // Contents API — works for files ≤ 1 MB; returns download_url for larger files
-    const apiUrl=`https://api.github.com/repos/${GH_REPO}/contents/${XLSX_FILE}?ref=${GH_BRANCH}&_=${Date.now()}`;
-    const resp=await fetch(apiUrl,{cache:'no-store'});
+    showToast('🔄 Loading latest data…');
+    // Use raw.githubusercontent.com — no API rate limit (CDN, not api.github.com)
+    // cache:'no-cache' sends a conditional request so browser only re-downloads if file changed
+    const url=`https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${XLSX_FILE}`;
+    const resp=await fetch(url,{cache:'no-cache'});
     if(!resp.ok){
-      const err=await resp.json().catch(()=>({}));
-      showToast(`❌ GitHub fetch failed (${resp.status}): ${err.message||'check file name / repo visibility'}`);
-      console.error('GH fetch error:',resp.status,err);
+      showToast(`❌ Failed to load Excel (${resp.status}) — check repo is public and file name matches exactly`);
       return false;
     }
-    const meta=await resp.json();
+    // Read Last-Modified header for the "last updated" date (no extra API call needed)
+    const lastMod=resp.headers.get('Last-Modified');
+    const ts=lastMod
+      ?new Date(lastMod).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+      :null;
 
-    // Convert to ArrayBuffer for SheetJS
-    let arrayBuf;
-    if(meta.content){
-      // Small file — base64 encoded inline
-      const b64=meta.content.replace(/\s/g,'');
-      const bin=atob(b64);
-      const bytes=new Uint8Array(bin.length);
-      for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-      arrayBuf=bytes.buffer;
-    } else if(meta.download_url){
-      // Larger file — fetch raw bytes
-      const raw=await fetch(meta.download_url,{cache:'no-store'});
-      if(!raw.ok){showToast('❌ Failed to download Excel file');return false;}
-      arrayBuf=await raw.arrayBuffer();
-    } else {
-      showToast('❌ GitHub returned no content — is the repo public?');
-      return false;
-    }
+    const arrayBuf=await resp.arrayBuffer();
 
     // Parse with SheetJS
     const wb=XLSX.read(arrayBuf,{type:'array'});
@@ -660,7 +634,7 @@ async function loadFromGitHub(){
     DATA.WTG    =wtgData;
     DATA.e2open =e2Data;
     showToast(`✅ Loaded: ${wtgData.length} WTG + ${e2Data.length} e2open courses`);
-    return{ts:'',fname:XLSX_FILE};
+    return{ts:ts||'',fname:XLSX_FILE};
   }catch(e){
     showToast(`❌ Error: ${e.message}`);
     console.error('GH load error:',e);
@@ -698,9 +672,8 @@ async function initLoad(){
       new Promise(r=>setTimeout(()=>r(false),10000))
     ]);
     if(result){
-      // Get the actual commit date
-      const commitDate=await getLastCommitDate();
-      const ts=commitDate||result.ts||'';
+      // Date comes from the raw file's Last-Modified header — no extra API call
+      const ts=result.ts||'';
       if(ts){
         $e('hdr-sub').textContent=`Enrollment & Adoption Analytics · Last updated: ${ts}`;
         $e('footer-date').textContent=`Last updated: ${ts}`;
