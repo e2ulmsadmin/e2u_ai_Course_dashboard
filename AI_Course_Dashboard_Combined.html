@@ -212,8 +212,8 @@
 <div class="modal-overlay" id="settings-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal">
     <h2>⚙️ GitHub Data Sync</h2>
-    <p class="m-sub">Connected to <strong>e2ulmsadmin/e2u_ai_Course_dashboard</strong>. The dashboard auto-fetches the latest encrypted data file whenever this page is opened — no configuration needed.</p>
-    <p class="m-hint" style="margin-top:8px">To update data: run <code style="background:#f4f5f7;padding:1px 5px;border-radius:4px">encrypt_data.py</code> then upload <code style="background:#f4f5f7;padding:1px 5px;border-radius:4px">ai-dashboard-data.enc</code> to the repository.</p>
+    <p class="m-sub">Connected to <strong>e2ulmsadmin/e2u_ai_Course_dashboard</strong>. The dashboard reads <strong>AI_Course_Dashboard_Data.xlsx</strong> directly from GitHub every time the page is opened.</p>
+    <p class="m-hint" style="margin-top:8px">To update data: simply upload your updated <code style="background:#f4f5f7;padding:1px 5px;border-radius:4px">AI_Course_Dashboard_Data.xlsx</code> to the repository — no scripts needed.</p>
     <div class="modal-btns">
       <button class="m-save" onclick="document.getElementById('settings-modal').classList.remove('open')">Close</button>
     </div>
@@ -393,7 +393,7 @@ function renderKPIs(){
   const cp=pct(tC,tE),ep=pct(tC+tP,tE);
   const kpis=[
     {l:'Total Courses',   v:rows.length,              s:'AI training modules',        k:'k-dp',     vc:'vdp'},
-    {l:'Total Enrollments',  v:tE.toLocaleString(),       s:currentOrg==='both'?'WTG + e2open':currentOrg==='wtg'?'WiseTech Global':'e2open', k:'k-purple',vc:'vpurple'},
+    {l:'Total Enrolled',  v:tE.toLocaleString(),       s:currentOrg==='both'?'WTG + e2open':currentOrg==='wtg'?'WiseTech Global':'e2open', k:'k-purple',vc:'vpurple'},
     {l:'Completed',       v:tC.toLocaleString(),       s:fP(cp)+' completion rate',   k:'k-olive',  vc:'volive'},
     {l:'In Progress',     v:tP.toLocaleString(),       s:'actively learning',         k:'k-amber',  vc:'vamber'},
     {l:'Not Started',     v:tN.toLocaleString(),       s:'yet to begin',              k:'k-teal',   vc:'vteal'},
@@ -553,31 +553,14 @@ function renderTable(){
 function sortTable(col){sortCol===col?sortDir*=-1:(sortCol=col,sortDir=-1);renderTable();}
 function filterTable(){renderTable();}
 
-// ── Encryption passphrase — must match encrypt_data.py ───────────────────
-const ENC_PASS = "WTGe2open#AI2026$Secure!Dash";
-const ENC_FILE = "ai-dashboard-data.enc";
-
-// ── Web Crypto helpers ────────────────────────────────────────────────────
-function b64ToBytes(b64){return Uint8Array.from(atob(b64),c=>c.charCodeAt(0));}
-async function deriveKey(passphrase,salt){
-  const raw=await crypto.subtle.importKey('raw',new TextEncoder().encode(passphrase),'PBKDF2',false,['deriveKey']);
-  return crypto.subtle.deriveKey(
-    {name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},
-    raw,{name:'AES-GCM',length:256},false,['decrypt']
-  );
-}
-async function decryptPayload(enc){
-  const salt=b64ToBytes(enc.salt),iv=b64ToBytes(enc.iv),data=b64ToBytes(enc.data);
-  const key=await deriveKey(ENC_PASS,salt);
-  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,data);
-  return JSON.parse(new TextDecoder().decode(plain));
-}
+// ── Excel filename in GitHub repo ─────────────────────────────────────────
+const XLSX_FILE = "AI_Course_Dashboard_Data.xlsx";
 
 // ── GitHub: get last commit date ──────────────────────────────────────────
 async function getLastCommitDate(){
   if(!GH_REPO) return null;
   try{
-    const r=await fetch(`https://api.github.com/repos/${GH_REPO}/commits?path=${ENC_FILE}&page=1&per_page=1&_=${Date.now()}`,{cache:'no-store'});
+    const r=await fetch(`https://api.github.com/repos/${GH_REPO}/commits?path=${XLSX_FILE}&page=1&per_page=1&_=${Date.now()}`,{cache:'no-store'});
     if(!r.ok) return null;
     const commits=await r.json();
     const d=commits?.[0]?.commit?.committer?.date||commits?.[0]?.commit?.author?.date;
@@ -585,26 +568,104 @@ async function getLastCommitDate(){
   }catch(e){return null;}
 }
 
-// ── Fetch and decrypt data from GitHub ───────────────────────────────────
+// ── Parse one Excel worksheet into dashboard row format ───────────────────
+function parseSheet(wb, sheetName){
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  // Find the header row — must contain 'course title'
+  let hdrIdx = rows.findIndex(r=>r.some(c=>String(c).toLowerCase().includes('course title')));
+  if(hdrIdx<0) hdrIdx=0;
+  const headers = rows[hdrIdx].map(h=>String(h||'').toLowerCase());
+
+  function colIdx(keywords, exclude){
+    return headers.findIndex(h=>{
+      if(!keywords.some(k=>h.includes(k))) return false;
+      if(exclude&&exclude.some(e=>h.includes(e))) return false;
+      return true;
+    });
+  }
+  const iC  = colIdx(['course title']);
+  const iCo = colIdx(['completed'],['%','rate']);
+  const iP  = colIdx(['progress']);
+  const iN  = colIdx(['not start']);
+  const iE  = colIdx(['enroll']);
+  const iT  = colIdx(['time','sec']);
+
+  return rows.slice(hdrIdx+1)
+    .filter(row=>{
+      const name=String(row[iC]||'').trim();
+      return name&&!['total','overall'].includes(name.toLowerCase());
+    })
+    .map(row=>({
+      course:     String(row[iC]||'').trim(),
+      completed:  parseInt(row[iCo]||0)||0,
+      in_progress:parseInt(row[iP] ||0)||0,
+      not_started:parseInt(row[iN] ||0)||0,
+      enrolled:   parseInt(row[iE] ||0)||0,
+      time_sec:   parseInt(row[iT] ||0)||0,
+    }));
+}
+
+// ── Fetch Excel directly from GitHub and parse with SheetJS ───────────────
 async function loadFromGitHub(){
-  if(!GH_REPO) return false;
+  if(!GH_REPO){showToast('❌ No GitHub repo configured');return false;}
   try{
-    // Use Contents API (not raw.githubusercontent.com) so GitHub CDN cache is bypassed
-    const apiUrl=`https://api.github.com/repos/${GH_REPO}/contents/${ENC_FILE}?ref=${GH_BRANCH}&_=${Date.now()}`;
+    showToast('🔄 Loading latest data from GitHub…');
+    // Contents API — works for files ≤ 1 MB; returns download_url for larger files
+    const apiUrl=`https://api.github.com/repos/${GH_REPO}/contents/${XLSX_FILE}?ref=${GH_BRANCH}&_=${Date.now()}`;
     const resp=await fetch(apiUrl,{cache:'no-store'});
-    if(!resp.ok) return false;
-    const meta=await resp.json();
-    // Contents API returns the file as base64 — decode it
-    const jsonStr=atob(meta.content.replace(/\s/g,''));
-    const enc=JSON.parse(jsonStr);
-    const decrypted=await decryptPayload(enc);
-    if(decrypted?.WTG?.length&&decrypted?.e2open?.length){
-      DATA.WTG=decrypted.WTG;
-      DATA.e2open=decrypted.e2open;
-      return{ts:'',fname:ENC_FILE};
+    if(!resp.ok){
+      const err=await resp.json().catch(()=>({}));
+      showToast(`❌ GitHub fetch failed (${resp.status}): ${err.message||'check file name / repo visibility'}`);
+      console.error('GH fetch error:',resp.status,err);
+      return false;
     }
+    const meta=await resp.json();
+
+    // Convert to ArrayBuffer for SheetJS
+    let arrayBuf;
+    if(meta.content){
+      // Small file — base64 encoded inline
+      const b64=meta.content.replace(/\s/g,'');
+      const bin=atob(b64);
+      const bytes=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+      arrayBuf=bytes.buffer;
+    } else if(meta.download_url){
+      // Larger file — fetch raw bytes
+      const raw=await fetch(meta.download_url,{cache:'no-store'});
+      if(!raw.ok){showToast('❌ Failed to download Excel file');return false;}
+      arrayBuf=await raw.arrayBuffer();
+    } else {
+      showToast('❌ GitHub returned no content — is the repo public?');
+      return false;
+    }
+
+    // Parse with SheetJS
+    const wb=XLSX.read(arrayBuf,{type:'array'});
+    const wtgName  =wb.SheetNames.find(n=>n.toLowerCase().includes('wtg'));
+    const e2Name   =wb.SheetNames.find(n=>n.toLowerCase().includes('e2open')||n.toLowerCase().includes('e2'));
+    if(!wtgName||!e2Name){
+      showToast(`❌ Excel sheets not found — sheets are: ${wb.SheetNames.join(', ')}`);
+      return false;
+    }
+
+    const wtgData=parseSheet(wb,wtgName);
+    const e2Data =parseSheet(wb,e2Name);
+    if(!wtgData.length||!e2Data.length){
+      showToast('❌ No data rows found in Excel — check sheet content');
+      return false;
+    }
+
+    DATA.WTG    =wtgData;
+    DATA.e2open =e2Data;
+    showToast(`✅ Loaded: ${wtgData.length} WTG + ${e2Data.length} e2open courses`);
+    return{ts:'',fname:XLSX_FILE};
+  }catch(e){
+    showToast(`❌ Error: ${e.message}`);
+    console.error('GH load error:',e);
     return false;
-  }catch(e){console.error('GH decrypt error:',e);return false;}
+  }
 }
 
 async function saveToGitHub(allData){
