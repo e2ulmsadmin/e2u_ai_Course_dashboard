@@ -212,16 +212,10 @@
 <div class="modal-overlay" id="settings-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal">
     <h2>⚙️ GitHub Data Sync</h2>
-    <p class="m-sub">Connect your <strong>public GitHub repository</strong>. Just upload <code style="background:#f4f5f7;padding:1px 5px;border-radius:4px">AI_Course_Dashboard_Data.xlsx</code> to the repo whenever data changes — the dashboard fetches it automatically for everyone. No token required.</p>
-    <label>GitHub Repository</label>
-    <input id="gh-repo" type="text" placeholder="e.g. naseem-ahmad/ai-dashboard">
-    <p class="m-hint">Format: <em>username/repo-name</em>. The repo must be <strong>public</strong>.</p>
-    <label>Personal Access Token <span style="font-weight:400;text-transform:none;font-size:11px">(optional — only needed for Upload Excel button)</span></label>
-    <input id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx (leave blank if not needed)">
-    <p class="m-hint">Leave blank if you'll manage data by uploading Excel directly to GitHub.</p>
+    <p class="m-sub">Connected to <strong>e2ulmsadmin/e2u_ai_Course_dashboard</strong>. The dashboard auto-fetches the latest encrypted data file whenever this page is opened — no configuration needed.</p>
+    <p class="m-hint" style="margin-top:8px">To update data: run <code style="background:#f4f5f7;padding:1px 5px;border-radius:4px">encrypt_data.py</code> then upload <code style="background:#f4f5f7;padding:1px 5px;border-radius:4px">ai-dashboard-data.enc</code> to the repository.</p>
     <div class="modal-btns">
-      <button class="m-cancel" onclick="document.getElementById('settings-modal').classList.remove('open')">Cancel</button>
-      <button class="m-save" onclick="saveGHSettings()">Save &amp; Connect</button>
+      <button class="m-save" onclick="document.getElementById('settings-modal').classList.remove('open')">Close</button>
     </div>
   </div>
 </div>
@@ -280,24 +274,16 @@ const DEFAULT={
 const LS_KEY = 'aiCourseDashboard_v1';
 
 // ── GitHub data sync config ───────────────────────────────────────────────
-let GH_REPO  = localStorage.getItem('ghRepo')  || '';  // e.g. "naseem/ai-dashboard"
-let GH_TOKEN = localStorage.getItem('ghToken') || '';  // PAT with public_repo scope
+const GH_REPO   = 'e2ulmsadmin/e2u_ai_Course_dashboard'; // hardcoded — works on every browser
+let GH_TOKEN = localStorage.getItem('ghToken') || '';  // PAT with public_repo scope (optional)
 const GH_FILE   = 'ai-dashboard-data.json';
 const GH_BRANCH = 'main';
 
 function openSettings(){
-  document.getElementById('gh-repo').value  = GH_REPO;
-  document.getElementById('gh-token').value = GH_TOKEN;
   document.getElementById('settings-modal').classList.add('open');
 }
 function saveGHSettings(){
-  GH_REPO  = document.getElementById('gh-repo').value.trim();
-  GH_TOKEN = document.getElementById('gh-token').value.trim();
-  localStorage.setItem('ghRepo',  GH_REPO);
-  localStorage.setItem('ghToken', GH_TOKEN);
   document.getElementById('settings-modal').classList.remove('open');
-  showToast('✅ GitHub settings saved — loading data…');
-  initLoad();
 }
 
 // Load saved data from localStorage, fallback to DEFAULT
@@ -603,10 +589,14 @@ async function getLastCommitDate(){
 async function loadFromGitHub(){
   if(!GH_REPO) return false;
   try{
-    const url=`https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${ENC_FILE}?t=${Date.now()}`;
-    const resp=await fetch(url);
+    // Use Contents API (not raw.githubusercontent.com) so GitHub CDN cache is bypassed
+    const apiUrl=`https://api.github.com/repos/${GH_REPO}/contents/${ENC_FILE}?ref=${GH_BRANCH}&_=${Date.now()}`;
+    const resp=await fetch(apiUrl,{cache:'no-store'});
     if(!resp.ok) return false;
-    const enc=await resp.json();
+    const meta=await resp.json();
+    // Contents API returns the file as base64 — decode it
+    const jsonStr=atob(meta.content.replace(/\s/g,''));
+    const enc=JSON.parse(jsonStr);
     const decrypted=await decryptPayload(enc);
     if(decrypted?.WTG?.length&&decrypted?.e2open?.length){
       DATA.WTG=decrypted.WTG;
